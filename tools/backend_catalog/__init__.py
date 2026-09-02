@@ -1,5 +1,3 @@
-"""Static backend capability inventory tooling for OIP."""
+"""Static backend inventory and semantic capability catalog tooling for OIP."""
 
-from .scanner import scan_project
-
-__all__ = ["scan_project"]
+__version__ = "0.2.0"

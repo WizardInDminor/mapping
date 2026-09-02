@@ -1,0 +1,318 @@
+capability_version: "0.2.0"
+
+# Human-owned semantic layer. Keep this file intentionally small.
+# Signatures, routes, source files, dependency calls, SQL templates, and database
+# objects are derived from the generated backend inventory rather than repeated here.
+capabilities:
+  - id: shift.current
+    name: Current Shift Context
+    category: Shift & Time Context
+    status: canonical
+    question: What operational shift owns a given datetime?
+    summary: Resolve the authoritative OIP shift context, including shift boundaries and site timezone behavior.
+    entrypoints:
+      - app.domains.shift.router.get_current_shift
+    use_when:
+      - A feature needs current or as-of shift boundaries.
+      - A time-windowed application feature needs the same shift interpretation used elsewhere in OIP.
+    guidance: Do not recreate shift-boundary or site-timezone rules inside page-specific services or frontend code.
+    related:
+      - daily_operations.workcell_shift_activity
+    tags: [shift, time, context]
+
+  - id: daily_operations.workcell_shift_activity
+    name: Workcell Shift Activity
+    category: Daily Operations
+    status: canonical
+    question: What operational events occurred in a workcell during a shift or bounded custom window?
+    summary: Compose normalized workcell events into the application-facing shift activity response used by the Workcell Lens timeline.
+    entrypoints:
+      - app.applications.daily_operations.routes.daily_operations_routes.get_workcell_shift_activity
+    use_when:
+      - Building a shift-oriented workcell timeline or activity summary.
+      - A feature needs event counts, entity counts, or normalized event chronology for a bounded window.
+    guidance: Prefer extending this application capability when the question is shift-oriented and cross-domain rather than creating page-specific event SQL.
+    related:
+      - shift.current
+      - equipment.entity_timeline
+    tags: [timeline, workcell, shift, events]
+
+  - id: availability.equipment_type
+    name: Equipment Type Availability
+    category: Equipment Health
+    status: canonical
+    question: What is the historical availability of an equipment type?
+    summary: Expose equipment-type availability for fleet-level health and trend views.
+    entrypoints:
+      - app.domains.availability.routes.availability_routes.get_equipment_type_availability
+    use_when:
+      - Building historical fleet-health summaries or availability trends by equipment type.
+      - Comparing equipment-family performance over a bounded period.
+    related:
+      - availability.equipment_type_current
+      - availability.entity_summary
+    tags: [availability, equipment-type, fleet]
+
+  - id: availability.equipment_type_current
+    name: Current Equipment Type Availability
+    category: Equipment Health
+    status: canonical
+    question: What is the current availability of an equipment type?
+    summary: Provide the current fleet-level availability view for an equipment family.
+    entrypoints:
+      - app.domains.availability.routes.availability_routes.get_current_equipment_type_availability
+    use_when:
+      - A page header or fleet snapshot needs current equipment-type availability.
+    related:
+      - availability.equipment_type
+    tags: [availability, equipment-type, current]
+
+  - id: availability.entity_summary
+    name: Entity Availability Summary
+    category: Equipment Health
+    status: canonical
+    question: What is an entity's availability summary over a requested period?
+    summary: Provide entity-level availability suitable for comparison and drill-down views.
+    entrypoints:
+      - app.domains.availability.routes.availability_routes.get_entity_availability_summary
+    use_when:
+      - Comparing individual entities within an equipment family.
+      - An entity-facing feature needs summarized availability rather than raw state history.
+    related:
+      - availability.equipment_type
+      - equipment.state_history
+    tags: [availability, entity]
+
+  - id: equipment.status
+    name: Equipment Status
+    category: Equipment Health
+    status: canonical
+    question: What is the current equipment state and supervisory status context?
+    summary: Return equipment status enriched with OIP-owned status notes and supported operational filters.
+    entrypoints:
+      - app.applications.equipment_status.routes.equipment_status.get_equipment_status
+    use_when:
+      - A feature needs current equipment condition, filtering, critical/five-day-down context, or enriched status notes.
+    guidance: Prefer this application surface when the consumer needs operationally enriched equipment status rather than raw equipment-state rows.
+    related:
+      - equipment.detail
+      - equipment.state_history
+    tags: [equipment, status, notes]
+
+  - id: equipment.detail
+    name: Equipment Detail
+    category: Equipment Health
+    status: canonical
+    question: What is the current detail record for one equipment entity?
+    summary: Provide the single-entity drill-down header representation used by equipment-facing application surfaces.
+    entrypoints:
+      - app.applications.equipment_status.routes.equipment_detail.get_equipment_detail
+    use_when:
+      - A drill-down page needs current equipment identity and status context for one entity.
+    related:
+      - equipment.status
+      - equipment.entity_timeline
+    tags: [equipment, entity, detail]
+
+  - id: equipment.state_history
+    name: Equipment State History
+    category: Equipment History
+    status: canonical
+    question: What state transitions has an equipment entity experienced?
+    summary: Expose historical equipment state transitions for an individual entity.
+    entrypoints:
+      - app.domains.equipment_state.routes.equipment_state.get_equipment_state_history_endpoint
+    use_when:
+      - A feature needs raw or near-raw state-transition history for an entity.
+      - Investigating duration or transition behavior beneath a higher-level timeline.
+    related:
+      - equipment.entity_timeline
+      - availability.entity_summary
+    tags: [equipment, state, history]
+
+  - id: equipment.entity_timeline
+    name: Entity Timeline
+    category: Equipment History
+    status: canonical
+    question: What operational events occurred for one equipment entity over time?
+    summary: Provide the canonical entity-level timeline response for chronological equipment investigation.
+    entrypoints:
+      - app.domains.timeline.routes.timeline_routes.get_equipment_timeline
+    use_when:
+      - Building an entity investigation timeline.
+      - A feature needs chronological event context across multiple event types for one tool.
+    guidance: Prefer the timeline domain over constructing an independent page-specific event history.
+    related:
+      - equipment.state_history
+      - daily_operations.workcell_shift_activity
+    tags: [equipment, timeline, history]
+
+  - id: equipment.events
+    name: Equipment Events
+    category: Equipment History
+    status: canonical
+    question: What equipment events are available for an individual entity?
+    summary: Expose the equipment-events domain for entity-specific event retrieval.
+    entrypoints:
+      - app.domains.equipment_events.routes.equipment_events.get_equipment_events
+    use_when:
+      - A consumer needs equipment event records without the broader timeline composition.
+    related:
+      - equipment.entity_timeline
+    tags: [equipment, events]
+
+  - id: jobs.notes
+    name: Job Notes
+    category: Jobs & Maintenance
+    status: canonical
+    question: What job notes exist for a tool or job?
+    summary: Retrieve bounded job-note history by general query, job identifier, or equipment entity.
+    entrypoints:
+      - app.domains.jobs.routes.job_notes.list_job_notes
+      - app.domains.jobs.routes.job_notes.get_job_specific_notes
+      - app.domains.jobs.routes.job_notes.get_tool_job_notes
+    use_when:
+      - A feature needs technician/job narrative context.
+      - Building AI context or investigative drill-down around current or historical maintenance work.
+    tags: [jobs, notes, maintenance]
+
+  - id: jobs.pm_forecast
+    name: PM Forecast
+    category: Jobs & Maintenance
+    status: canonical
+    question: What planned maintenance work is forecast?
+    summary: Expose the PM forecast application response for upcoming maintenance demand.
+    entrypoints:
+      - app.domains.jobs.routes.pm_forecast.get_pm_forecast
+    use_when:
+      - A planning or capacity view needs upcoming PM demand.
+    tags: [jobs, pm, forecast]
+
+  - id: workcell.wip_current
+    name: Current Workcell WIP
+    category: Factory Pressure
+    status: canonical
+    question: What are the current WIP levels in a workcell?
+    summary: Return current process-level WIP and associated status thresholds for a workcell.
+    entrypoints:
+      - app.applications.workcells.routes.workcell.get_workcell_wip_levels
+    use_when:
+      - A page needs current factory-pressure context for a workcell.
+    related:
+      - workcell.wip_trend
+    tags: [workcell, wip, pressure]
+
+  - id: workcell.wip_trend
+    name: Workcell WIP Trend
+    category: Factory Pressure
+    status: canonical
+    question: How has WIP changed over time for a workcell?
+    summary: Return bounded historical WIP trend points for factory-pressure context.
+    entrypoints:
+      - app.applications.workcells.routes.workcell.get_workcell_wip_trend
+    use_when:
+      - Relating equipment performance to changing factory demand over time.
+    related:
+      - workcell.wip_current
+      - availability.equipment_type
+    tags: [workcell, wip, trend]
+
+  - id: workcell.failure_analysis
+    name: Workcell Failure Analysis
+    category: Failure Analysis
+    status: canonical
+    question: Which failures and equipment groups are driving downtime in a workcell?
+    summary: Analyze workcell failures and downtime grouped by equipment or process type.
+    entrypoints:
+      - app.applications.workcells.routes.workcell.get_workcell_failure_analysis
+    use_when:
+      - Ranking recurring failure modes or identifying equipment groups driving downtime.
+      - Supplying diagnostic context to Workcell or Equipment Type views.
+    related:
+      - workcell.failure_events
+    tags: [workcell, failures, downtime]
+
+  - id: workcell.failure_events
+    name: Workcell Failure Events
+    category: Failure Analysis
+    status: canonical
+    question: What detailed failure events support the workcell failure analysis?
+    summary: Retrieve bounded failure-event examples grouped by equipment or process type.
+    entrypoints:
+      - app.applications.workcells.routes.workcell.get_workcell_failure_events
+    use_when:
+      - A diagnostic view needs examples behind aggregated failure statistics.
+    related:
+      - workcell.failure_analysis
+    tags: [workcell, failures, events]
+
+  - id: employees.refs
+    name: Employee References
+    category: Employees
+    status: canonical
+    question: Which employees match shift, grade, or workcell filters for lightweight selection?
+    summary: Provide MSSQL-backed employee reference records for pickers, assignments, and lightweight lookup.
+    entrypoints:
+      - app.domains.employees.router.list_employee_refs
+    use_when:
+      - Populating employee selectors or assignment UI without full employee enrichment.
+    tags: [employees, lookup, assignments]
+
+  - id: employees.detail
+    name: Employee Detail
+    category: Employees
+    status: canonical
+    question: What current and historical context is available for one employee?
+    summary: Provide detailed employee context, including authoritative MSSQL current assignment data and application enrichment.
+    entrypoints:
+      - app.domains.employees.router.get_employee
+    use_when:
+      - Building an Employee Lens or employee profile/drill-down.
+    related:
+      - employees.refs
+    tags: [employees, detail]
+
+  - id: priorities.list
+    name: Priorities
+    category: Coordination
+    status: canonical
+    question: What supervisory priorities are currently recorded in OIP?
+    summary: Expose OIP-owned priority coordination state.
+    entrypoints:
+      - app.coordination.priorities.routes.priority_routes.get_priorities
+    use_when:
+      - A supervisor-facing surface needs the current set of recorded priorities.
+    related:
+      - priorities.assignments
+    tags: [coordination, priorities]
+
+  - id: priorities.assignments
+    name: Priority Assignments
+    category: Coordination
+    status: canonical
+    question: How are employees and equipment assigned to priorities for a shift?
+    summary: Read and maintain shift-scoped priority assignment coordination state.
+    entrypoints:
+      - app.coordination.priority_assignments.routes.priority_assignments.get_shift_assignments
+      - app.coordination.priority_assignments.routes.priority_assignments.get_assignment_history
+    use_when:
+      - A feature needs current shift priority assignments or assignment history.
+    related:
+      - priorities.list
+      - employees.refs
+    tags: [coordination, priorities, assignments]
+
+  - id: notes.equipment_status
+    name: Equipment Status Notes
+    category: Coordination
+    status: canonical
+    question: What OIP-owned supervisory status note exists for an equipment entity?
+    summary: Read application-owned equipment status notes used to preserve supervisory context across shifts.
+    entrypoints:
+      - app.coordination.notes.routes.equipment_notes.get_equipment_status_note
+      - app.coordination.notes.routes.equipment_notes.get_equipment_status_notes_batch
+    use_when:
+      - Enriching equipment lists or drill-downs with preserved supervisory context.
+    related:
+      - equipment.status
+    tags: [coordination, notes, equipment]
