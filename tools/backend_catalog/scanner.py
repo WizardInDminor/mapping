@@ -300,11 +300,42 @@ def _tables_from_text(text: str) -> set[str]:
     return {m.group(1).replace("[", "").replace("]", "") for m in SQL_TABLE_RE.finditer(text)}
 
 
+def _annotation_binding(
+    annotation: ast.AST | None,
+    imports: dict[str, str],
+    module: str,
+) -> str | None:
+    """Resolve a simple imported type annotation to its fully-qualified target.
+
+    This is intentionally conservative. It exists primarily for typed dependency
+    parameters such as ``service: WorkcellService = Depends(...)`` so attribute
+    calls on ``service`` can be connected to ``WorkcellService`` methods without
+    importing or executing the application. Builtins and compound annotations
+    are left unresolved.
+    """
+    if isinstance(annotation, ast.Name) and annotation.id in imports:
+        return imports[annotation.id]
+    if isinstance(annotation, ast.Attribute):
+        raw = _expr_name(annotation)
+        first = raw.split('.', 1)[0]
+        if first in imports:
+            return _resolve_expr(annotation, imports, {}, module)
+    return None
+
+
 class FunctionAnalyzer(ast.NodeVisitor):
     def __init__(self, info: ModuleInfo, node: ast.FunctionDef | ast.AsyncFunctionDef):
         self.info = info
         self.node = node
         self.local_bindings = dict(info.object_bindings)
+        for parameter in (
+            list(node.args.posonlyargs)
+            + list(node.args.args)
+            + list(node.args.kwonlyargs)
+        ):
+            target = _annotation_binding(parameter.annotation, info.imports, info.module)
+            if target:
+                self.local_bindings[parameter.arg] = target
         self.calls: list[CallRecord] = []
         self.sql_files: set[str] = set()
         self.tables: set[str] = set()

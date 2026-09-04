@@ -12,7 +12,7 @@ except ImportError:  # pragma: no cover - exercised only when dependency is abse
     yaml = None
 
 
-CAPABILITY_SCHEMA_VERSION = "0.2.0"
+CAPABILITY_SCHEMA_VERSION = "0.2.1"
 VALID_STATUSES = {"canonical", "experimental", "legacy", "planned"}
 
 
