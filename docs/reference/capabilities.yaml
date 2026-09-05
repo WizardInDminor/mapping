@@ -1,4 +1,4 @@
-capability_version: "0.2.0"
+capability_version: "0.2.1"
 
 # Human-owned semantic layer. Keep this file intentionally small.
 # Signatures, routes, source files, dependency calls, SQL templates, and database
